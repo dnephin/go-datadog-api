@@ -16,17 +16,17 @@ import (
 
 // DataPoint is a tuple of [UNIX timestamp, value]. This has to use floats
 // because the value could be non-integer.
-type DataPoint [2]*float64
+type DataPoint [2]float64
 
 // Metric represents a collection of data points that we might send or receive
 // on one single metric line.
 type Metric struct {
-	Metric *string     `json:"metric,omitempty"`
+	Metric string      `json:"metric,omitempty"`
 	Points []DataPoint `json:"points,omitempty"`
-	Type   *string     `json:"type,omitempty"`
-	Host   *string     `json:"host,omitempty"`
+	Type   string      `json:"type,omitempty"`
+	Host   string      `json:"host,omitempty"`
 	Tags   []string    `json:"tags,omitempty"`
-	Unit   *string     `json:"unit,omitempty"`
+	Unit   string      `json:"unit,omitempty"`
 }
 
 // Unit represents a unit definition that we might receive when query for timeseries data.
@@ -41,21 +41,21 @@ type Unit struct {
 
 // A Series is characterized by 2 units as: x per y
 // One or both could be missing
-type UnitPair []*Unit
+type UnitPair []Unit
 
 // Series represents a collection of data points we get when we query for timeseries data
 type Series struct {
-	Metric      *string     `json:"metric,omitempty"`
-	DisplayName *string     `json:"display_name,omitempty"`
+	Metric      string      `json:"metric,omitempty"`
+	DisplayName string      `json:"display_name,omitempty"`
 	Points      []DataPoint `json:"pointlist,omitempty"`
-	Start       *float64    `json:"start,omitempty"`
-	End         *float64    `json:"end,omitempty"`
-	Interval    *int        `json:"interval,omitempty"`
-	Aggr        *string     `json:"aggr,omitempty"`
-	Length      *int        `json:"length,omitempty"`
-	Scope       *string     `json:"scope,omitempty"`
-	Expression  *string     `json:"expression,omitempty"`
-	Units       *UnitPair   `json:"unit,omitempty"`
+	Start       float64     `json:"start,omitempty"`
+	End         float64     `json:"end,omitempty"`
+	Interval    int         `json:"interval,omitempty"`
+	Aggr        string      `json:"aggr,omitempty"`
+	Length      int         `json:"length,omitempty"`
+	Scope       string      `json:"scope,omitempty"`
+	Expression  string      `json:"expression,omitempty"`
+	Units       UnitPair    `json:"unit,omitempty"`
 }
 
 // reqPostSeries from /api/v1/series
