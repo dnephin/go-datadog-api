@@ -1,3 +1,5 @@
+// +build disabled-post-gen-removal
+
 package datadog
 
 import (

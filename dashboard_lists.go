@@ -82,7 +82,7 @@ func (client *Client) CreateDashboardList(list *DashboardList) (*DashboardList, 
 
 // UpdateDashboardList returns a single dashboard list created on this account.
 func (client *Client) UpdateDashboardList(list *DashboardList) error {
-	req := reqUpdateDashboardList{list.GetName()}
+	req := reqUpdateDashboardList{*list.Name}
 	return client.doJsonRequest("PUT", fmt.Sprintf("/v1/dashboard/lists/manual/%d", *list.Id), req, nil)
 }
 
