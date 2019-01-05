@@ -63,9 +63,9 @@ type reqPostSeries struct {
 	Series []Metric `json:"series,omitempty"`
 }
 
-// reqMetrics is the container for receiving metric results.
-type reqMetrics struct {
-	Series []Series `json:"series,omitempty"`
+type QueryMetricsResponse struct {
+	Metadata ResponseMetadata
+	Series   []Series `json:"series,omitempty"`
 }
 
 // PostMetrics takes as input a slice of metrics and then posts them up to the
@@ -77,13 +77,19 @@ func (client *Client) PostMetrics(series []Metric) error {
 
 // QueryMetrics takes as input from, to (seconds from Unix Epoch) and query string and then requests
 // timeseries data for that time peried
-func (client *Client) QueryMetrics(ctx context.Context, from, to int64, query string) ([]Series, error) {
+func (client *Client) QueryMetrics(
+	ctx context.Context,
+	from int64,
+	to int64,
+	query string,
+) ([]Series, error) {
 	v := url.Values{}
 	v.Add("from", strconv.FormatInt(from, 10))
 	v.Add("to", strconv.FormatInt(to, 10))
 	v.Add("query", query)
 
-	var out reqMetrics
-	err := client.doRequestWithContext(ctx, "GET", "/v1/query?"+v.Encode(), nil, &out)
+	var out QueryMetricsResponse
+	resp, err := client.doRequestWithContext(ctx, "GET", "/v1/query?"+v.Encode(), nil, &out)
+	out.Metadata = resp
 	return out.Series, err
 }

@@ -24,10 +24,14 @@ import (
 	"github.com/cenkalti/backoff"
 )
 
-// Response contains common fields that might be present in any API response.
-type Response struct {
+// StatusResponse contains common fields that might be present in any API response.
+type StatusResponse struct {
 	Status string `json:"status"`
 	Error  string `json:"error"`
+}
+
+type ResponseMetadata struct {
+	RateLimit RateLimit
 }
 
 // uriForAPI is to be called with something like "/v1/events" and it will give
@@ -70,7 +74,8 @@ func redactKeysFromError(err error, keys ...string) error {
 // wraps doJsonRequestUnredacted to redact api and application keys from
 // errors.
 func (client *Client) doJsonRequest(method, api string, reqBody, out interface{}) error {
-	return client.doRequestWithContext(nil, method, api, reqBody, out)
+	_, err := client.doRequestWithContext(nil, method, api, reqBody, out)
+	return err
 }
 
 func (client *Client) doRequestWithContext(
@@ -79,24 +84,30 @@ func (client *Client) doRequestWithContext(
 	api string,
 	reqBody interface{},
 	out interface{},
-) error {
+) (ResponseMetadata, error) {
+	md := ResponseMetadata{}
 	url, err := client.uriForAPI(api)
 	if err != nil {
-		return err
+		return md, err
 	}
 	req, err := newJSONRequest(method, url, reqBody)
 	if err != nil {
-		return redactKeysFromError(err, client.apiKey, client.appKey)
+		return md, redactKeysFromError(err, client.apiKey, client.appKey)
 	}
 	if ctx != nil {
 		req = req.WithContext(ctx)
 	}
 	resp, err := doerForMethod(client, method)(req)
 	if err != nil {
-		return redactKeysFromError(err, client.apiKey, client.appKey)
+		return md, redactKeysFromError(err, client.apiKey, client.appKey)
 	}
 	err = handleResponse(resp, out)
-	return redactKeysFromError(err, client.apiKey, client.appKey)
+	resp.Body.Close()
+	if err != nil {
+		return md, redactKeysFromError(err, client.apiKey, client.appKey)
+	}
+	md.RateLimit = newRateLimitFromHeaders(resp.Header)
+	return md, nil
 }
 
 func newJSONRequest(method, url string, reqBody interface{}) (*http.Request, error) {
@@ -171,8 +182,6 @@ func (client *Client) getBackOff() backoff.BackOff {
 // handleResponse reports errors if it finds any, otherwise unmarshals the
 // response body into out.
 func handleResponse(resp *http.Response, out interface{}) error {
-	defer resp.Body.Close()
-
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return err
@@ -185,7 +194,7 @@ func handleResponse(resp *http.Response, out interface{}) error {
 	}
 
 	// Try to parse common response fields to check whether there's an error reported in a response.
-	var common Response
+	var common StatusResponse
 	err = json.Unmarshal(body, &common)
 	if err != nil {
 		// UnmarshalTypeErrors are ignored, because in some cases API response is an array that cannot be
