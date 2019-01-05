@@ -11,6 +11,7 @@ package datadog
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -42,36 +43,34 @@ func (client *Client) uriForAPI(api string) (string, error) {
 	return apiBase.String(), nil
 }
 
-// redactError removes api and application keys from error strings
-func (client *Client) redactError(err error) error {
+// redactKeysFromError removes api and application keys from error strings
+func redactKeysFromError(err error, keys ...string) error {
 	if err == nil {
 		return nil
 	}
-	errString := err.Error()
+	errMessage := err.Error()
 
-	if len(client.apiKey) > 0 {
-		errString = strings.Replace(errString, client.apiKey, "redacted", -1)
-	}
-	if len(client.appKey) > 0 {
-		errString = strings.Replace(errString, client.appKey, "redacted", -1)
+	for _, key := range keys {
+		if len(key) > 0 {
+			errMessage = strings.Replace(errMessage, key, "redacted", -1)
+		}
 	}
 
 	// Return original error if no replacements were made to keep the original,
 	// probably more useful error type information.
-	if errString == err.Error() {
+	if errMessage == err.Error() {
 		return err
 	}
-	return fmt.Errorf("%s", errString)
+	return errors.New(errMessage)
 }
 
 // doJsonRequest is the simplest type of request: a method on a URI that
 // returns some JSON result which we unmarshal into the passed interface. It
 // wraps doJsonRequestUnredacted to redact api and application keys from
 // errors.
-func (client *Client) doJsonRequest(method, api string,
-	reqbody, out interface{}) error {
+func (client *Client) doJsonRequest(method, api string, reqbody, out interface{}) error {
 	if err := client.doJsonRequestUnredacted(method, api, reqbody, out); err != nil {
-		return client.redactError(err)
+		return redactKeysFromError(err, client.apiKey, client.appKey)
 	}
 	return nil
 }

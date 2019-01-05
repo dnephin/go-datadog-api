@@ -31,32 +31,29 @@ func TestUriForApi(t *testing.T) {
 }
 
 func TestRedactError(t *testing.T) {
-	c := Client{
-		apiKey:       "sample_api_key",
-		appKey:       "sample_app_key",
-		baseUrl:      "https://base.datadoghq.com",
-		HttpClient:   &http.Client{},
-		RetryTimeout: 1000,
+	keys := []string{
+		"sample_api_key",
+		"sample_app_key",
+		"",
 	}
 	t.Run("Error containing api key in string is correctly redacted", func(t *testing.T) {
-		var leakErr = fmt.Errorf("Error test: %s,%s", c.apiKey, c.apiKey)
-		var redactedErr = c.redactError(leakErr)
+		var leakErr = fmt.Errorf("Error test: %s,%s", keys[0], keys[0])
+		var redactedErr = redactKeysFromError(leakErr, keys...)
 
 		if assert.NotNil(t, redactedErr) {
 			assert.Equal(t, "Error test: redacted,redacted", redactedErr.Error())
 		}
 	})
 	t.Run("Error containing application key in string is correctly redacted", func(t *testing.T) {
-		var leakErr = fmt.Errorf("Error test: %s,%s", c.appKey, c.appKey)
-		var redactedErr = c.redactError(leakErr)
+		var leakErr = fmt.Errorf("Error test: %s,%s", keys[1], keys[1])
+		var redactedErr = redactKeysFromError(leakErr, keys...)
 
 		if assert.NotNil(t, redactedErr) {
 			assert.Equal(t, "Error test: redacted,redacted", redactedErr.Error())
 		}
 	})
 	t.Run("Nil error returns nil", func(t *testing.T) {
-		var harmlessErr error = nil
-		var redactedErr = c.redactError(harmlessErr)
+		var redactedErr = redactKeysFromError(nil, keys...)
 
 		assert.Nil(t, redactedErr)
 	})
