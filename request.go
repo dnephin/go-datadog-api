@@ -190,7 +190,7 @@ func handleResponse(resp *http.Response, out interface{}) error {
 		return fmt.Errorf("API error %s: %s", resp.Status, body)
 	}
 	if len(body) == 0 {
-		body = []byte{'{', '}'}
+		return nil
 	}
 
 	// Try to parse common response fields to check whether there's an error reported in a response.
