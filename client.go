@@ -80,7 +80,7 @@ func (client *Client) Validate() (bool, error) {
 		return false, err
 	}
 
-	resp, err = client.doRequestWithRetries(req, client.RetryTimeout)
+	resp, err = client.doRequestWithRetries(req)
 	if err != nil {
 		return false, err
 	}
