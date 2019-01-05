@@ -14,6 +14,8 @@ import (
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/cenkalti/backoff"
 )
 
 // Client is the object that handles talking to the Datadog API. This maintains
@@ -21,9 +23,15 @@ import (
 type Client struct {
 	apiKey, appKey, baseUrl string
 
-	//The Http Client that is used to make requests
-	HttpClient   *http.Client
+	// HttpClient used to perform API requests. A default will be used if
+	// none is provided. Note the default has no timeout.
+	HttpClient *http.Client
+	// RetryTimeout used when no BackOff is set.
 	RetryTimeout time.Duration
+	// BackOff used to retry failed requests.
+	BackOff backoff.BackOff
+	// RetryNotify is called one each retry.
+	RetryNotify backoff.Notify
 }
 
 // valid is the struct to unmarshal validation endpoint responses into.
@@ -45,7 +53,7 @@ func NewClient(apiKey, appKey string) *Client {
 		appKey:       appKey,
 		baseUrl:      baseUrl,
 		HttpClient:   http.DefaultClient,
-		RetryTimeout: time.Duration(60 * time.Second),
+		RetryTimeout: -1,
 	}
 }
 

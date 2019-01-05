@@ -18,6 +18,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/cenkalti/backoff"
 )
@@ -121,10 +122,6 @@ func doerForMethod(client *Client, method string) doer {
 // an error or non-retryable HTTP response code is received.
 func (client *Client) doRequestWithRetries(req *http.Request) (*http.Response, error) {
 	var resp *http.Response
-	// TODO: allow for a configurable backoff, and add context
-	var bo = backoff.NewExponentialBackOff()
-	bo.MaxElapsedTime = client.RetryTimeout
-
 	operation := func() error {
 		var err error
 		resp, err = client.HttpClient.Do(req)
@@ -139,9 +136,22 @@ func (client *Client) doRequestWithRetries(req *http.Request) (*http.Response, e
 			return fmt.Errorf("Received HTTP status code %d", resp.StatusCode)
 		}
 	}
+	return resp, backoff.RetryNotify(operation, client.getBackOff(), client.RetryNotify)
+}
 
-	// TODO: support a configurable notify function using RetryNotify
-	return resp, backoff.Retry(operation, bo)
+// TODO: add context
+func (client *Client) getBackOff() backoff.BackOff {
+	if client.BackOff != nil {
+		return client.BackOff
+	}
+	expBackOff := backoff.NewExponentialBackOff()
+	switch {
+	case client.RetryTimeout != -1:
+		expBackOff.MaxElapsedTime = client.RetryTimeout
+	default:
+		expBackOff.MaxElapsedTime = 60 * time.Second
+	}
+	return expBackOff
 }
 
 // handleResponse reports errors if it finds any, otherwise unmarshals the
