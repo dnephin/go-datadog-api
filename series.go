@@ -9,6 +9,7 @@
 package datadog
 
 import (
+	"context"
 	"net/url"
 	"strconv"
 )
@@ -76,16 +77,13 @@ func (client *Client) PostMetrics(series []Metric) error {
 
 // QueryMetrics takes as input from, to (seconds from Unix Epoch) and query string and then requests
 // timeseries data for that time peried
-func (client *Client) QueryMetrics(from, to int64, query string) ([]Series, error) {
+func (client *Client) QueryMetrics(ctx context.Context, from, to int64, query string) ([]Series, error) {
 	v := url.Values{}
 	v.Add("from", strconv.FormatInt(from, 10))
 	v.Add("to", strconv.FormatInt(to, 10))
 	v.Add("query", query)
 
 	var out reqMetrics
-	err := client.doJsonRequest("GET", "/v1/query?"+v.Encode(), nil, &out)
-	if err != nil {
-		return nil, err
-	}
-	return out.Series, nil
+	err := client.doRequestWithContext(ctx, "GET", "/v1/query?"+v.Encode(), nil, &out)
+	return out.Series, err
 }

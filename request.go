@@ -10,6 +10,7 @@ package datadog
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -69,6 +70,16 @@ func redactKeysFromError(err error, keys ...string) error {
 // wraps doJsonRequestUnredacted to redact api and application keys from
 // errors.
 func (client *Client) doJsonRequest(method, api string, reqBody, out interface{}) error {
+	return client.doRequestWithContext(nil, method, api, reqBody, out)
+}
+
+func (client *Client) doRequestWithContext(
+	ctx context.Context,
+	method string,
+	api string,
+	reqBody interface{},
+	out interface{},
+) error {
 	url, err := client.uriForAPI(api)
 	if err != nil {
 		return err
@@ -76,6 +87,9 @@ func (client *Client) doJsonRequest(method, api string, reqBody, out interface{}
 	req, err := newJSONRequest(method, url, reqBody)
 	if err != nil {
 		return redactKeysFromError(err, client.apiKey, client.appKey)
+	}
+	if ctx != nil {
+		req = req.WithContext(ctx)
 	}
 	resp, err := doerForMethod(client, method)(req)
 	if err != nil {
@@ -136,10 +150,10 @@ func (client *Client) doRequestWithRetries(req *http.Request) (*http.Response, e
 			return fmt.Errorf("Received HTTP status code %d", resp.StatusCode)
 		}
 	}
-	return resp, backoff.RetryNotify(operation, client.getBackOff(), client.RetryNotify)
+	backOff := backoff.WithContext(client.getBackOff(), req.Context())
+	return resp, backoff.RetryNotify(operation, backOff, client.RetryNotify)
 }
 
-// TODO: add context
 func (client *Client) getBackOff() backoff.BackOff {
 	if client.BackOff != nil {
 		return client.BackOff
