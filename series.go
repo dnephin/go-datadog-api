@@ -64,8 +64,8 @@ type reqPostSeries struct {
 }
 
 type QueryMetricsResponse struct {
-	Metadata ResponseMetadata
-	Series   []Series `json:"series,omitempty"`
+	Metadata ResponseMetadata `json:"-"`
+	Series   []Series         `json:"series,omitempty"`
 }
 
 // PostMetrics takes as input a slice of metrics and then posts them up to the
@@ -82,14 +82,14 @@ func (client *Client) QueryMetrics(
 	from int64,
 	to int64,
 	query string,
-) ([]Series, error) {
+) (QueryMetricsResponse, error) {
 	v := url.Values{}
 	v.Add("from", strconv.FormatInt(from, 10))
 	v.Add("to", strconv.FormatInt(to, 10))
 	v.Add("query", query)
 
-	var out QueryMetricsResponse
-	resp, err := client.doRequestWithContext(ctx, "GET", "/v1/query?"+v.Encode(), nil, &out)
-	out.Metadata = resp
-	return out.Series, err
+	var resp QueryMetricsResponse
+	md, err := client.doRequestWithContext(ctx, "GET", "/v1/query?"+v.Encode(), nil, &resp)
+	resp.Metadata = md
+	return resp, err
 }
