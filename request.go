@@ -24,7 +24,8 @@ import (
 	"github.com/cenkalti/backoff"
 )
 
-// StatusResponse contains common fields that might be present in any API response.
+// StatusResponse contains fields that used by API endpoints to indicate an
+// error.
 type StatusResponse struct {
 	Status string `json:"status"`
 	Error  string `json:"error"`
@@ -182,6 +183,7 @@ func (client *Client) getBackOff() backoff.BackOff {
 // handleResponse reports errors if it finds any, otherwise unmarshals the
 // response body into out.
 func handleResponse(resp *http.Response, out interface{}) error {
+	// FIXME: unbounded read from network
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return err
@@ -192,25 +194,21 @@ func handleResponse(resp *http.Response, out interface{}) error {
 	if len(body) == 0 {
 		return nil
 	}
-
-	// Try to parse common response fields to check whether there's an error reported in a response.
-	var common StatusResponse
-	err = json.Unmarshal(body, &common)
-	if err != nil {
-		// UnmarshalTypeErrors are ignored, because in some cases API response is an array that cannot be
-		// unmarshalled into a struct.
-		// TODO: if the API is returning different types for common, maybe it's
-		// not so common after all. Why are some of these errors ignored?
-		_, ok := err.(*json.UnmarshalTypeError)
-		if !ok {
-			return err
-		}
-	}
-	if common.Status == "error" {
-		return fmt.Errorf("API returned error: %s", common.Error)
+	if err := handleErrorFromBody(body); err != nil {
+		return err
 	}
 	if out == nil {
 		return nil
 	}
 	return json.Unmarshal(body, &out)
+}
+
+func handleErrorFromBody(body []byte) error {
+	var common StatusResponse
+	// Ignore failures to unmarshal. Response may not include a StatusResponse.
+	_ = json.Unmarshal(body, &common)
+	if common.Status == "error" {
+		return fmt.Errorf("API returned error: %s", common.Error)
+	}
+	return nil
 }
